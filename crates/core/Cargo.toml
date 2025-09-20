@@ -1,0 +1,24 @@
+[package]
+name = "core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wgpu.workspace = true
+winit.workspace = true
+pollster.workspace = true
+futures.workspace = true
+raw-window-handle.workspace = true
+thiserror.workspace = true
+cpuidrs.workspace = true
+bytemuck.workspace = true
+cosmic-text.workspace = true
+env_logger.workspace = true
+glm.workspace = true
+image.workspace = true
+lyon.workspace = true
+naga.workspace = true
+regex.workspace = true
+shaderc.workspace = true
+shaderc-sys.workspace = true
+tokio.workspace = true

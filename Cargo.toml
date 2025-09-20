@@ -1,0 +1,59 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/*"
+]
+
+[workspace.dependencies]
+bytemuck = "1.14"
+cosmic-text = "0.14.2"
+env_logger = "0.10.1"
+glm = "0.3.0"
+image = { version = "0.25.8", features = ["png", "jpeg", "bmp", "ico", "tiff", "gif", "webp"] }
+lyon = { version = "1.0.16", features = ["extra", "lyon_extra", "serialization"] }
+naga = { version = "26.0.0", features = ["spv-in", "wgsl-out"] }
+raw-window-handle = "0.5"
+regex = "1.10.4"
+shaderc = "0.10.1"
+shaderc-sys = "0.10.1"
+thiserror = "2.0.16"
+tokio = { version = "1.38.0", features = ["full"] }
+wgpu = "26.0.1"
+winit = "0.30.12"
+futures = "0.3.31"
+cpuidrs = "0.1.0"
+pollster = "0.4.0"
+#internal crates below, allows them to depend on each other
+core = {path = "crates/core"}
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev]
+debug = true
+overflow-checks = true
+lto = false
+codegen-units = 256
+incremental = true
+panic = "unwind"
+rpath = false
+strip = false
+debug-assertions = true
+
+[profile.dev.dep.package."*"]
+opt-level = 3
+debug = false
+overflow-checks = false
+lto = true
+codegen-units = 1
+incremental = true
+
+[profile.release]
+debug = false
+overflow-checks = false
+lto = "fat"
+codegen-units = 1
+incremental = false
+panic = "abort"
+rpath = false
+strip = true
