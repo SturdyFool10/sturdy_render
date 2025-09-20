@@ -40,9 +40,8 @@ impl ApplicationHandler for Engine {
 
         // Pass the raw window handle to the renderer for surface creation
         if let Some(window) = self.window.window.as_ref() {
-            // This is a placeholder for a platform-agnostic raw window handle.
-            // In real code, use raw-window-handle crate or similar.
-            let raw_handle = window as *const _ as *const std::ffi::c_void;
+            // Correctly dereference Arc<Window> to get the raw Window pointer for wgpu.
+            let raw_handle = &**window as *const winit::window::Window as *const std::ffi::c_void;
             self.renderer.create_surface(raw_handle);
         }
 
