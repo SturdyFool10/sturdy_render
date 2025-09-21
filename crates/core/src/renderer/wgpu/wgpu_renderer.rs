@@ -14,6 +14,8 @@ pub struct WgpuRenderer {
     pub queue: Option<Queue>,
     pub surface_config: Option<SurfaceConfiguration>,
     pub vertex_buffer: Option<wgpu::Buffer>,
+    pub index_buffer: Option<wgpu::Buffer>,
+    pub index_count: usize,
     pub pipeline: Option<wgpu::RenderPipeline>,
 }
 
@@ -27,6 +29,8 @@ impl WgpuRenderer {
             queue: None,
             surface_config: None,
             vertex_buffer: None,
+            index_buffer: None,
+            index_count: 0,
             pipeline: None,
         }
     }
@@ -42,9 +46,30 @@ impl WgpuRenderer {
         if let (Some(device), Some(surface_config)) =
             (self.device.as_ref(), self.surface_config.as_ref())
         {
+            // Create sample quad mesh
+            let mesh = crate::renderer::primitives::mesh::Mesh::sample_quad();
+
+            // Debug log mesh vertex and index data
+            for (i, v) in mesh.verts.iter().enumerate() {
+                tracing::debug!(
+                    "Mesh Vertex {}: position=({:.2},{:.2}), color=({:.2},{:.2},{:.2})",
+                    i,
+                    v.position[0],
+                    v.position[1],
+                    v.color[0],
+                    v.color[1],
+                    v.color[2]
+                );
+            }
+            tracing::debug!("Mesh Indices: {:?}", mesh.indices);
+
             // Vertex buffer
-            let vertex_buffer = crate::renderer::wgpu::vertex::create_vertex_buffer(device);
+            let vertex_buffer = mesh.create_vertex_buffer(device);
             self.vertex_buffer = Some(vertex_buffer);
+            // Index buffer
+            let index_buffer = mesh.create_index_buffer(device);
+            self.index_buffer = Some(index_buffer);
+            self.index_count = mesh.indices.len();
 
             // Pipeline
             let pipeline = crate::renderer::wgpu::pipeline::create_triangle_pipeline(
@@ -67,6 +92,7 @@ impl WgpuRenderer {
             Some(surface_config),
             Some(pipeline),
             Some(vertex_buffer),
+            Some(index_buffer),
         ) = (
             self.surface.as_ref(),
             self.device.as_ref(),
@@ -74,6 +100,7 @@ impl WgpuRenderer {
             self.surface_config.as_ref(),
             self.pipeline.as_ref(),
             self.vertex_buffer.as_ref(),
+            self.index_buffer.as_ref(),
         ) {
             match surface.get_current_texture() {
                 Ok(frame) => {
@@ -83,13 +110,13 @@ impl WgpuRenderer {
 
                     let mut encoder =
                         device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                            label: Some("Triangle Render Encoder"),
+                            label: Some("Indexed Render Encoder"),
                         });
 
                     {
                         let mut render_pass =
                             encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                                label: Some("Triangle Render Pass"),
+                                label: Some("Indexed Render Pass"),
                                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                                     view: &view,
                                     resolve_target: None,
@@ -111,7 +138,9 @@ impl WgpuRenderer {
 
                         render_pass.set_pipeline(pipeline);
                         render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                        render_pass.draw(0..3, 0..1);
+                        render_pass
+                            .set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                        render_pass.draw_indexed(0..self.index_count as u32, 0, 0..1);
                     }
 
                     queue.submit(Some(encoder.finish()));
