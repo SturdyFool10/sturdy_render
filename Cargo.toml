@@ -23,6 +23,12 @@ winit = "0.30.12"
 futures = "0.3.31"
 cpuidrs = "0.1.0"
 pollster = "0.4.0"
+chrono = "0.4.42"
+colored = "3.0.0"
+once_cell = "1.21.3"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
+tracing = "0.1.41"
+ansi_escapers = "0.2.0"
 #internal crates below, allows them to depend on each other
 core = {path = "crates/core"}
 

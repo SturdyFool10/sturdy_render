@@ -1,5 +1,4 @@
-//! WgpuRenderer: wgpu-specific implementation of the Renderer trait.
-
+use tracing::{error, info};
 use wgpu::{
     Adapter, Device, DeviceDescriptor, Features, Instance, Limits, MemoryHints, PowerPreference,
     PresentMode, Queue, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
@@ -119,7 +118,7 @@ impl WgpuRenderer {
                     frame.present();
                 }
                 Err(err) => {
-                    eprintln!("Surface error: {:?}", err);
+                    error!("Surface error: {:?}", err);
                     surface.configure(device, surface_config);
                 }
             }
@@ -131,6 +130,7 @@ impl WgpuRenderer {
         // Safety: window_handle must be a pointer to a winit::window::Window
         let window = unsafe { &*(window_handle as *const Window) };
 
+        info!("Creating graphics API surface for window.");
         // Create instance if not already created
         if self.instance.is_none() {
             self.instance = Some(Instance::default());
@@ -143,6 +143,7 @@ impl WgpuRenderer {
             .expect("create wgpu surface");
         self.surface = Some(surface);
 
+        info!("Requesting graphics adapter.");
         // Request adapter
         let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
             power_preference: PowerPreference::HighPerformance,
@@ -150,8 +151,14 @@ impl WgpuRenderer {
             compatible_surface: self.surface.as_ref(),
         }))
         .expect("request adapter");
+        info!(
+            "Adapter acquired: name='{}', backend={:?}",
+            adapter.get_info().name,
+            adapter.get_info().backend
+        );
         self.adapter = Some(adapter);
 
+        info!("Requesting device and queue.");
         // Request device/queue
         let (device, queue) = pollster::block_on(self.adapter.as_ref().unwrap().request_device(
             &DeviceDescriptor {
@@ -186,6 +193,13 @@ impl WgpuRenderer {
             .find(|m| *m == PresentMode::Mailbox)
             .unwrap_or(PresentMode::Fifo);
 
+        info!(
+            "Surface configuration: format={:?}, present_mode={:?}, size={}x{}",
+            format,
+            present_mode,
+            size.width.max(1),
+            size.height.max(1)
+        );
         let surface_config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
             format,
@@ -210,6 +224,11 @@ impl WgpuRenderer {
             self.device.as_ref(),
             self.surface_config.as_mut(),
         ) {
+            tracing::trace!(
+                "Resizing surface to {}x{}",
+                new_width.max(1),
+                new_height.max(1)
+            );
             surface_config.width = new_width.max(1);
             surface_config.height = new_height.max(1);
             surface.configure(device, &*surface_config);
@@ -218,6 +237,7 @@ impl WgpuRenderer {
 
     /// Detach the surface and clean up resources, but keep window alive
     pub fn detach_surface(&mut self) {
+        info!("Detaching graphics API surface and cleaning up resources.");
         self.surface = None;
         self.surface_config = None;
         self.adapter = None;
@@ -228,6 +248,7 @@ impl WgpuRenderer {
 
 impl Drop for WgpuRenderer {
     fn drop(&mut self) {
+        info!("Dropping WgpuRenderer and cleaning up resources.");
         self.detach_surface();
     }
 }

@@ -1,5 +1,3 @@
-//! Pipeline setup for WgpuRenderer: loads shaders, creates pipeline layout and render pipeline.
-
 use std::fs;
 use std::path::Path;
 use wgpu::{Device, RenderPipeline, ShaderModule, SurfaceConfiguration};

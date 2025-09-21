@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use tracing::info;
 use winit::{
     dpi::{PhysicalSize, Size},
     event::WindowEvent,
@@ -22,6 +23,10 @@ impl EngineWindow {
 
     /// Create the window and return EngineWindow.
     pub fn create(el: &ActiveEventLoop, title: &str, width: u32, height: u32) -> Self {
+        info!(
+            "Creating window: title='{}', size={}x{}",
+            title, width, height
+        );
         let attrs = Self::default_attributes(title, width, height).with_visible(true);
         let window = el.create_window(attrs).expect("create window");
         let window = Arc::new(window);
@@ -41,9 +46,11 @@ impl EngineWindow {
 
         match event {
             WindowEvent::CloseRequested => {
+                info!("Window close requested.");
                 el.exit();
             }
-            WindowEvent::Resized(_new_size) => {
+            WindowEvent::Resized(new_size) => {
+                tracing::trace!("Window resized: {}x{}", new_size.width, new_size.height);
                 // Window resizing logic only, no graphics API calls
             }
             WindowEvent::RedrawRequested => {

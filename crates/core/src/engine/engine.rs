@@ -1,12 +1,13 @@
+use tracing::info;
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
 };
 
-use crate::renderer::Renderer;
 use crate::renderer::WgpuRenderer;
 use crate::window::window::EngineWindow;
+use crate::{logging::init_logging, renderer::Renderer};
 
 /// Our top-level app. Implements `ApplicationHandler` for winit 0.30+.
 pub struct Engine {
@@ -26,6 +27,8 @@ impl Default for Engine {
 impl Engine {
     /// Entry point: build an event loop and run.
     pub fn run() {
+        init_logging();
+        info!("Engine startup: initializing event loop and window.");
         let event_loop = EventLoop::new().expect("create EventLoop");
         event_loop.set_control_flow(ControlFlow::Poll);
         let mut app = Self::default();
@@ -36,16 +39,19 @@ impl Engine {
 impl ApplicationHandler for Engine {
     fn resumed(&mut self, el: &ActiveEventLoop) {
         // Use EngineWindow to create and own all window/wgpu handles
+        info!("Creating application window.");
         self.window = EngineWindow::create(el, "SturdyRendererRS", 1280, 720);
 
         // Pass the raw window handle to the renderer for surface creation
         if let Some(window) = self.window.window.as_ref() {
             // Correctly dereference Arc<Window> to get the raw Window pointer for wgpu.
             let raw_handle = &**window as *const winit::window::Window as *const std::ffi::c_void;
+            info!("Creating graphics API surface for window.");
             self.renderer.create_surface(raw_handle);
         }
 
         // Initialize the renderer (internal setup only)
+        info!("Initializing renderer.");
         self.renderer.init();
     }
 

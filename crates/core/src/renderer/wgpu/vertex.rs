@@ -1,5 +1,3 @@
-//! Vertex definition and vertex buffer creation for Hello Triangle.
-
 use bytemuck::{Pod, Zeroable};
 use wgpu::{Buffer, BufferUsages, Device};
 
