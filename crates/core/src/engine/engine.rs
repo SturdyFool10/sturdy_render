@@ -11,14 +11,14 @@ use crate::{logging::init_logging, renderer::Renderer};
 
 /// Our top-level app. Implements `ApplicationHandler` for winit 0.30+.
 pub struct Engine {
-    window: EngineWindow,
+    window: Option<EngineWindow>,
     renderer: Box<dyn Renderer>,
 }
 
 impl Default for Engine {
     fn default() -> Self {
         Self {
-            window: EngineWindow { window: None },
+            window: None,
             renderer: Box::new(WgpuRenderer::new()),
         }
     }
@@ -40,12 +40,15 @@ impl ApplicationHandler for Engine {
     fn resumed(&mut self, el: &ActiveEventLoop) {
         // Use EngineWindow to create and own all window/wgpu handles
         info!("Creating application window.");
-        self.window = EngineWindow::create(el, "SturdyRendererRS", 1280, 720);
+        let engine_window = EngineWindow::create(el, "SturdyRendererRS", 1280, 720);
+        let window_handle_opt = engine_window
+            .window
+            .as_ref()
+            .map(|window| &**window as *const winit::window::Window as *const std::ffi::c_void);
+        self.window = Some(engine_window);
 
         // Pass the raw window handle to the renderer for surface creation
-        if let Some(window) = self.window.window.as_ref() {
-            // Correctly dereference Arc<Window> to get the raw Window pointer for wgpu.
-            let raw_handle = &**window as *const winit::window::Window as *const std::ffi::c_void;
+        if let Some(raw_handle) = window_handle_opt {
             info!("Creating graphics API surface for window.");
             self.renderer.create_surface(raw_handle);
         }
@@ -75,16 +78,20 @@ impl ApplicationHandler for Engine {
         let is_redraw = matches!(event, WindowEvent::RedrawRequested);
 
         // Let the window handle the event and update its state
-        self.window.handle_event(el, event_for_window);
+        if let Some(window) = self.window.as_mut() {
+            window.handle_event(el, event_for_window);
 
-        // After window event is processed, handle rendering if needed
-        if is_redraw {
-            self.renderer.render();
-        }
+            // After window event is processed, handle rendering if needed
+            if is_redraw {
+                self.renderer.render();
+            }
 
-        // Handle window resize event
-        if let Some((width, height)) = resized_size {
-            self.renderer.resize_surface(width, height);
+            // Handle window resize event
+            if let Some((width, height)) = resized_size {
+                if window.get_ready() {
+                    self.renderer.resize_surface(width, height);
+                }
+            }
         }
     }
 }

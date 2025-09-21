@@ -10,6 +10,8 @@ use winit::{
 /// EngineWindow: Owns the window handle and related state, provides creation and event handling.
 pub struct EngineWindow {
     pub window: Option<Arc<Window>>,
+    initialized: bool,
+    intended_size: glm::UVec2,
     // Add other generic state as needed, but no graphics API handles
 }
 
@@ -33,6 +35,8 @@ impl EngineWindow {
 
         Self {
             window: Some(window),
+            initialized: false,
+            intended_size: glm::uvec2(width, height),
         }
     }
 
@@ -50,7 +54,20 @@ impl EngineWindow {
                 el.exit();
             }
             WindowEvent::Resized(new_size) => {
-                tracing::trace!("Window resized: {}x{}", new_size.width, new_size.height);
+                // Only log and propagate resize after window is initialized to intended size
+                if !self.initialized {
+                    if new_size.width == self.intended_size.x
+                        && new_size.height == self.intended_size.y
+                    {
+                        self.initialized = true;
+                    } else {
+                        // Suppress and stop propagation for weird initial resizes
+                        return;
+                    }
+                }
+                if self.initialized {
+                    tracing::trace!("Window resized: {}x{}", new_size.width, new_size.height);
+                }
                 // Window resizing logic only, no graphics API calls
             }
             WindowEvent::RedrawRequested => {
@@ -66,6 +83,10 @@ impl EngineWindow {
         if let Some(window) = self.window.as_ref() {
             window.set_title(title);
         }
+    }
+
+    pub fn get_ready(&self) -> bool {
+        self.initialized
     }
 
     /// Example accessor: get window size
