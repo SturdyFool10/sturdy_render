@@ -17,6 +17,7 @@ pub fn create_triangle_pipeline(
     device: &Device,
     config: &SurfaceConfiguration,
     vertex_layout: wgpu::VertexBufferLayout,
+    instance_layout: wgpu::VertexBufferLayout,
     shader_vert_path: &str,
     shader_frag_path: &str,
 ) -> RenderPipeline {
@@ -35,7 +36,7 @@ pub fn create_triangle_pipeline(
         vertex: wgpu::VertexState {
             module: &vs_module,
             entry_point: Some("main"),
-            buffers: &[vertex_layout],
+            buffers: &[vertex_layout, instance_layout],
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         },
         fragment: Some(wgpu::FragmentState {

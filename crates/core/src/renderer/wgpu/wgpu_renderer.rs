@@ -1,4 +1,7 @@
+use glm::ext::translate;
+use glm::{Mat4, vec3, vec4};
 use tracing::{error, info};
+use wgpu::util::DeviceExt;
 use wgpu::{
     Adapter, Device, DeviceDescriptor, Features, Instance, Limits, MemoryHints, PowerPreference,
     PresentMode, Queue, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
@@ -16,6 +19,8 @@ pub struct WgpuRenderer {
     pub vertex_buffer: Option<wgpu::Buffer>,
     pub index_buffer: Option<wgpu::Buffer>,
     pub index_count: usize,
+    pub instance_buffer: Option<wgpu::Buffer>,
+    pub instance_count: usize,
     pub pipeline: Option<wgpu::RenderPipeline>,
 }
 
@@ -31,6 +36,8 @@ impl WgpuRenderer {
             vertex_buffer: None,
             index_buffer: None,
             index_count: 0,
+            instance_buffer: None,
+            instance_count: 0,
             pipeline: None,
         }
     }
@@ -76,6 +83,7 @@ impl WgpuRenderer {
                 device,
                 surface_config,
                 crate::renderer::wgpu::vertex::Vertex::desc(),
+                crate::renderer::wgpu::vertex::Vertex::instance_desc(),
                 "crates/core/src/renderer/wgpu/shaders/triangle.vert.wgsl",
                 "crates/core/src/renderer/wgpu/shaders/triangle.frag.wgsl",
             );
@@ -136,11 +144,46 @@ impl WgpuRenderer {
                                 timestamp_writes: None,
                             });
 
+                        use crate::renderer::primitives::mesh::{
+                            InstanceRaw, Mesh, translation_matrix_flat,
+                        };
+
+                        // Demo: draw several test rectangles using instancing
+                        let instances = [
+                            InstanceRaw {
+                                transform: translation_matrix_flat(-0.7, 0.7, 0.0),
+                                color: [1.0, 0.0, 0.0, 1.0], // Red
+                            },
+                            InstanceRaw {
+                                transform: translation_matrix_flat(0.7, 0.7, 0.0),
+                                color: [0.0, 1.0, 0.0, 1.0], // Green
+                            },
+                            InstanceRaw {
+                                transform: translation_matrix_flat(0.7, -0.7, 0.0),
+                                color: [0.0, 0.0, 1.0, 1.0], // Blue
+                            },
+                            InstanceRaw {
+                                transform: translation_matrix_flat(-0.7, -0.7, 0.0),
+                                color: [1.0, 1.0, 0.0, 1.0], // Yellow
+                            },
+                        ];
+                        let instance_buffer =
+                            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                label: Some("Instance Buffer"),
+                                contents: bytemuck::cast_slice(&instances),
+                                usage: wgpu::BufferUsages::VERTEX,
+                            });
+
                         render_pass.set_pipeline(pipeline);
                         render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                         render_pass
                             .set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                        render_pass.draw_indexed(0..self.index_count as u32, 0, 0..1);
+                        render_pass.draw_indexed(
+                            0..self.index_count as u32,
+                            0,
+                            0..instances.len() as u32,
+                        );
                     }
 
                     queue.submit(Some(encoder.finish()));
@@ -302,5 +345,42 @@ impl crate::renderer::Renderer for WgpuRenderer {
 
     fn detach_surface(&mut self) {
         self.detach_surface();
+    }
+}
+
+impl WgpuRenderer {
+    /// Draw a regular mesh (no instancing)
+    pub fn draw_mesh(
+        &mut self,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &crate::renderer::primitives::mesh::Mesh,
+    ) {
+        if let (Some(vertex_buffer), Some(index_buffer)) =
+            (self.vertex_buffer.as_ref(), self.index_buffer.as_ref())
+        {
+            render_pass.set_pipeline(self.pipeline.as_ref().unwrap());
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..self.index_count as u32, 0, 0..1);
+        }
+    }
+
+    /// Draw an instanced mesh
+    pub fn draw_mesh_instanced(
+        &mut self,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &crate::renderer::primitives::mesh::Mesh,
+        instance_buffer: &wgpu::Buffer,
+        instance_count: usize,
+    ) {
+        if let (Some(vertex_buffer), Some(index_buffer)) =
+            (self.vertex_buffer.as_ref(), self.index_buffer.as_ref())
+        {
+            render_pass.set_pipeline(self.pipeline.as_ref().unwrap());
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..self.index_count as u32, 0, 0..instance_count as u32);
+        }
     }
 }

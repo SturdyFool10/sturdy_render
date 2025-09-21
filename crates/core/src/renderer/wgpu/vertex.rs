@@ -21,6 +21,45 @@ impl Vertex {
             attributes: &Self::ATTRIBS,
         }
     }
+
+    /// Vertex buffer layout for InstanceRaw (mat4 + vec4, step_mode: Instance)
+    pub fn instance_desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        use wgpu::VertexStepMode;
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<crate::renderer::primitives::mesh::InstanceRaw>()
+                as wgpu::BufferAddress,
+            step_mode: VertexStepMode::Instance,
+            attributes: &[
+                // mat4 as 4 vec4s
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: 16,
+                    shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: 32,
+                    shader_location: 4,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: 48,
+                    shader_location: 5,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                // color as vec4
+                wgpu::VertexAttribute {
+                    offset: 64,
+                    shader_location: 6,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+            ],
+        }
+    }
 }
 
 /// Returns the vertex data for a colored triangle.
